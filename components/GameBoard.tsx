@@ -31,11 +31,14 @@ export const GameBoard: React.FC = () => {
   });
 
   const processMatches = useCallback(async () => {
-    let currentBoard = gameState.board;
+    let currentBoard = [...gameState.board.map(row => [...row])];
     let totalMatches = 0;
     let hasMatches = true;
+    let iterations = 0;
+    const maxIterations = 20; // Prevent infinite loops
 
-    while (hasMatches) {
+    while (hasMatches && iterations < maxIterations) {
+      iterations++;
       const matches = findMatches(currentBoard);
       
       if (matches.length === 0) {
@@ -45,7 +48,7 @@ export const GameBoard: React.FC = () => {
 
       totalMatches += matches.length;
       
-      // Mark candies as matched
+      // Mark candies as matched for breaking animation
       const boardWithMatches = currentBoard.map(row => [...row]);
       matches.forEach(({ row, col }) => {
         if (boardWithMatches[row][col]) {
@@ -53,17 +56,35 @@ export const GameBoard: React.FC = () => {
         }
       });
 
-      // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Update state to show breaking animation
+      setGameState(prev => ({
+        ...prev,
+        board: boardWithMatches,
+      }));
+
+      // Wait for breaking animation to complete
+      await new Promise(resolve => setTimeout(resolve, 450));
 
       // Remove matches
       currentBoard = removeMatches(boardWithMatches, matches);
 
-      // Apply gravity
+      // Apply gravity to make candies fall
       currentBoard = applyGravity(currentBoard, gameState.level);
 
-      // Wait for falling animation
+      // Update state to show falling animation
+      setGameState(prev => ({
+        ...prev,
+        board: currentBoard,
+      }));
+
+      // Wait for falling animation to complete
       await new Promise(resolve => setTimeout(resolve, 400));
+
+      // Check for new matches created by falling candies
+      const newMatches = findMatches(currentBoard);
+      if (newMatches.length === 0) {
+        hasMatches = false;
+      }
     }
 
     if (totalMatches > 0) {
@@ -296,7 +317,7 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     marginTop: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: '#4169E1',
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 25,

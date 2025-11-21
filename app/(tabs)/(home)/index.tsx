@@ -27,7 +27,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Candy Crush</Text>
+      <Text style={styles.title}>Trinity Match</Text>
       <Text style={styles.subtitle}>Match 3 or more candies!</Text>
       <GameBoard />
     </View>
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: '800',
-    color: colors.primary,
+    color: '#4169E1',
     marginTop: 60,
     marginBottom: 8,
     fontFamily: 'Nunito_800ExtraBold',

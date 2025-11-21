@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { Animated, TouchableOpacity, StyleSheet } from 'react-native';
 import { Candy } from '@/types/game';
 import { getCandyColor } from '@/utils/gameLogic';
 
@@ -14,6 +14,8 @@ interface CandyPieceProps {
 export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isSelected) {
@@ -40,15 +42,26 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
 
   useEffect(() => {
     if (candy.isMatched) {
+      // Breaking animation - scale down, rotate, and fade out while falling
       Animated.parallel([
         Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 300,
+          toValue: 0.3,
+          duration: 400,
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateYAnim, {
+          toValue: 100,
+          duration: 400,
           useNativeDriver: true,
         }),
       ]).start();
@@ -56,6 +69,11 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
   }, [candy.isMatched]);
 
   const candyColor = getCandyColor(candy.type);
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   return (
     <TouchableOpacity
@@ -68,7 +86,11 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
           styles.candy,
           {
             backgroundColor: candyColor,
-            transform: [{ scale: scaleAnim }],
+            transform: [
+              { scale: scaleAnim },
+              { rotate: rotate },
+              { translateY: translateYAnim },
+            ],
             opacity: opacityAnim,
             borderColor: isSelected ? '#FFFFFF' : candyColor,
             borderWidth: isSelected ? 3 : 0,
