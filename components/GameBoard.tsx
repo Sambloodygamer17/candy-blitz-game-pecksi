@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert, Platform, ScrollView } from 'react-native';
 import { CandyPiece } from './CandyPiece';
-import { GameState, Position } from '@/types/game';
+import { GameState, Position, CandyType } from '@/types/game';
 import {
   createInitialBoard,
   areAdjacent,
@@ -10,7 +10,9 @@ import {
   findMatches,
   removeMatches,
   applyGravity,
-  getBoardSize,
+  getLevelConfig,
+  isBoardCleared,
+  getCandyColor,
 } from '@/utils/gameLogic';
 import { colors } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
@@ -19,14 +21,23 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export const GameBoard: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(() => {
-    const { rows, cols } = getBoardSize(1);
+    const levelConfig = getLevelConfig(1);
     return {
-      board: createInitialBoard(rows, cols, 1),
+      board: createInitialBoard(levelConfig.boardSize.rows, levelConfig.boardSize.cols, 1),
       score: 0,
-      moves: 30,
+      moves: levelConfig.moves,
       level: 1,
       selectedCandy: null,
       isProcessing: false,
+      objective: levelConfig.objective,
+      collectedColors: {
+        red: 0,
+        blue: 0,
+        green: 0,
+        yellow: 0,
+        purple: 0,
+        orange: 0,
+      },
     };
   });
 
@@ -41,7 +52,25 @@ export const GameBoard: React.FC = () => {
   const boardCols = gameState.board[0]?.length || 0;
   const CELL_SIZE = Math.min((SCREEN_WIDTH - 40) / Math.max(boardRows, boardCols), 50);
 
-  const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][]) => {
+  const checkLevelComplete = useCallback((currentState: GameState): boolean => {
+    const { objective, collectedColors, board } = currentState;
+    
+    if (objective.type === 'clear_board') {
+      return isBoardCleared(board);
+    } else if (objective.type === 'collect_colors' && objective.targetColors) {
+      // Check if all color targets are met
+      for (const [color, target] of Object.entries(objective.targetColors)) {
+        if (collectedColors[color as CandyType] < target) {
+          return false;
+        }
+      }
+      return true;
+    }
+    
+    return false;
+  }, []);
+
+  const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][], matchedCandies: Position[]) => {
     console.log('Starting processMatches with board');
     let currentBoard = initialBoard.map(row => [...row]);
     let totalMatches = 0;
@@ -50,6 +79,15 @@ export const GameBoard: React.FC = () => {
     const maxIterations = 20;
     const currentLevel = gameStateRef.current.level;
     const currentScore = gameStateRef.current.score;
+    const currentCollected = { ...gameStateRef.current.collectedColors };
+
+    // Track colors from initial matches
+    matchedCandies.forEach(({ row, col }) => {
+      const candy = currentBoard[row][col];
+      if (candy) {
+        currentCollected[candy.type]++;
+      }
+    });
 
     while (hasMatches && iterations < maxIterations) {
       iterations++;
@@ -65,6 +103,14 @@ export const GameBoard: React.FC = () => {
       console.log(`Found ${matches.length} matches in iteration ${iterations}`);
       totalMatches += matches.length;
       
+      // Track collected colors
+      matches.forEach(({ row, col }) => {
+        const candy = currentBoard[row][col];
+        if (candy) {
+          currentCollected[candy.type]++;
+        }
+      });
+
       // Mark candies as matched for breaking animation
       const boardWithMatches = currentBoard.map(row => [...row]);
       matches.forEach(({ row, col }) => {
@@ -77,6 +123,7 @@ export const GameBoard: React.FC = () => {
       setGameState(prev => ({
         ...prev,
         board: boardWithMatches,
+        collectedColors: currentCollected,
       }));
 
       // Wait for breaking animation to complete
@@ -94,6 +141,7 @@ export const GameBoard: React.FC = () => {
       setGameState(prev => ({
         ...prev,
         board: currentBoard,
+        collectedColors: currentCollected,
       }));
 
       // Wait for falling animation to complete
@@ -110,43 +158,66 @@ export const GameBoard: React.FC = () => {
       const points = totalMatches * 10 * currentLevel;
       console.log(`Adding ${points} points to score`);
       
-      setGameState(prev => ({
-        ...prev,
+      const updatedState: GameState = {
+        ...gameStateRef.current,
         board: currentBoard,
-        score: prev.score + points,
+        score: currentScore + points,
+        collectedColors: currentCollected,
         isProcessing: false,
-      }));
+      };
 
-      // Check for level up
-      if (currentScore + points >= currentLevel * 500) {
-        setTimeout(() => {
+      setGameState(updatedState);
+
+      // Check if level is complete
+      setTimeout(() => {
+        if (checkLevelComplete(updatedState)) {
+          console.log('Level complete!');
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          
           const nextLevel = currentLevel + 1;
-          const { rows, cols } = getBoardSize(nextLevel);
+          const nextLevelConfig = getLevelConfig(nextLevel);
           
           Alert.alert(
-            'Level Up!',
-            `Congratulations! You've reached level ${nextLevel}!\nBoard size: ${rows}x${cols}`,
+            'Level Complete! 🎉',
+            `Congratulations! You've completed level ${currentLevel}!\n\nNext Level: ${nextLevel}\nBoard size: ${nextLevelConfig.boardSize.rows}×${nextLevelConfig.boardSize.cols}\nMoves: ${nextLevelConfig.moves}`,
             [
               {
                 text: 'Continue',
                 onPress: () => {
-                  setGameState(prev => ({
-                    ...prev,
+                  setGameState({
+                    board: createInitialBoard(
+                      nextLevelConfig.boardSize.rows,
+                      nextLevelConfig.boardSize.cols,
+                      nextLevel
+                    ),
+                    score: updatedState.score,
+                    moves: nextLevelConfig.moves,
                     level: nextLevel,
-                    moves: 30,
-                    board: createInitialBoard(rows, cols, nextLevel),
-                  }));
+                    selectedCandy: null,
+                    isProcessing: false,
+                    objective: nextLevelConfig.objective,
+                    collectedColors: {
+                      red: 0,
+                      blue: 0,
+                      green: 0,
+                      yellow: 0,
+                      purple: 0,
+                      orange: 0,
+                    },
+                  });
                 },
               },
             ]
           );
-        }, 500);
-      }
+        }
+      }, 500);
     } else {
       console.log('No matches to process, ending');
       setGameState(prev => ({ ...prev, isProcessing: false }));
     }
-  }, []);
+  }, [checkLevelComplete]);
 
   const handleCandyPress = useCallback(
     async (row: number, col: number) => {
@@ -201,7 +272,7 @@ export const GameBoard: React.FC = () => {
 
             // Process matches after a short delay
             setTimeout(() => {
-              processMatchesWithBoard(newBoard);
+              processMatchesWithBoard(newBoard, matches);
             }, 200);
           } else {
             // Invalid move - swap back
@@ -235,37 +306,145 @@ export const GameBoard: React.FC = () => {
 
   const resetGame = () => {
     console.log('Resetting game');
-    const { rows, cols } = getBoardSize(1);
+    const levelConfig = getLevelConfig(1);
     setGameState({
-      board: createInitialBoard(rows, cols, 1),
+      board: createInitialBoard(levelConfig.boardSize.rows, levelConfig.boardSize.cols, 1),
       score: 0,
-      moves: 30,
+      moves: levelConfig.moves,
       level: 1,
       selectedCandy: null,
       isProcessing: false,
+      objective: levelConfig.objective,
+      collectedColors: {
+        red: 0,
+        blue: 0,
+        green: 0,
+        yellow: 0,
+        purple: 0,
+        orange: 0,
+      },
     });
   };
 
   useEffect(() => {
     if (gameState.moves <= 0 && !gameState.isProcessing) {
       console.log('Game over - no moves left');
-      setTimeout(() => {
-        Alert.alert(
-          'Game Over',
-          `Final Score: ${gameState.score}\nLevel: ${gameState.level}`,
-          [
-            {
-              text: 'Play Again',
-              onPress: resetGame,
-            },
-          ]
-        );
-      }, 500);
+      
+      // Check if objective was completed
+      const isComplete = checkLevelComplete(gameState);
+      
+      if (!isComplete) {
+        setTimeout(() => {
+          Alert.alert(
+            'Level Failed',
+            `You ran out of moves!\n\nFinal Score: ${gameState.score}\nLevel: ${gameState.level}`,
+            [
+              {
+                text: 'Try Again',
+                onPress: () => {
+                  const levelConfig = getLevelConfig(gameState.level);
+                  setGameState(prev => ({
+                    ...prev,
+                    board: createInitialBoard(
+                      levelConfig.boardSize.rows,
+                      levelConfig.boardSize.cols,
+                      gameState.level
+                    ),
+                    moves: levelConfig.moves,
+                    selectedCandy: null,
+                    isProcessing: false,
+                    collectedColors: {
+                      red: 0,
+                      blue: 0,
+                      green: 0,
+                      yellow: 0,
+                      purple: 0,
+                      orange: 0,
+                    },
+                  }));
+                },
+              },
+              {
+                text: 'Main Menu',
+                onPress: resetGame,
+              },
+            ]
+          );
+        }, 500);
+      }
     }
-  }, [gameState.moves, gameState.isProcessing, gameState.score, gameState.level]);
+  }, [gameState.moves, gameState.isProcessing, gameState.score, gameState.level, checkLevelComplete]);
+
+  const renderObjectiveProgress = () => {
+    const { objective, collectedColors } = gameState;
+    
+    if (objective.type === 'clear_board') {
+      const totalCells = boardRows * boardCols;
+      let filledCells = 0;
+      gameState.board.forEach(row => {
+        row.forEach(cell => {
+          if (cell !== null) filledCells++;
+        });
+      });
+      const clearedCells = totalCells - filledCells;
+      
+      return (
+        <View style={styles.objectiveContainer}>
+          <Text style={styles.objectiveTitle}>Objective</Text>
+          <Text style={styles.objectiveText}>{objective.description}</Text>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${(clearedCells / totalCells) * 100}%` }
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {clearedCells} / {totalCells} cleared
+          </Text>
+        </View>
+      );
+    } else if (objective.type === 'collect_colors' && objective.targetColors) {
+      return (
+        <View style={styles.objectiveContainer}>
+          <Text style={styles.objectiveTitle}>Objective</Text>
+          <Text style={styles.objectiveText}>{objective.description}</Text>
+          <View style={styles.colorTargetsContainer}>
+            {Object.entries(objective.targetColors).map(([color, target]) => {
+              const collected = collectedColors[color as CandyType];
+              const progress = Math.min(collected / target, 1);
+              const isComplete = collected >= target;
+              
+              return (
+                <View key={color} style={styles.colorTarget}>
+                  <View 
+                    style={[
+                      styles.colorDot, 
+                      { backgroundColor: getCandyColor(color as CandyType) }
+                    ]} 
+                  />
+                  <Text style={[styles.colorTargetText, isComplete && styles.colorTargetComplete]}>
+                    {collected} / {target}
+                  </Text>
+                  {isComplete && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      );
+    }
+    
+    return null;
+  };
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
         <View style={styles.statContainer}>
           <Text style={styles.statLabel}>Score</Text>
@@ -277,9 +456,13 @@ export const GameBoard: React.FC = () => {
         </View>
         <View style={styles.statContainer}>
           <Text style={styles.statLabel}>Moves</Text>
-          <Text style={styles.statValue}>{gameState.moves}</Text>
+          <Text style={[styles.statValue, gameState.moves <= 5 && styles.lowMoves]}>
+            {gameState.moves}
+          </Text>
         </View>
       </View>
+
+      {renderObjectiveProgress()}
 
       <Text style={styles.boardSizeText}>
         Board: {boardRows}×{boardCols}
@@ -312,17 +495,19 @@ export const GameBoard: React.FC = () => {
       <TouchableOpacity style={styles.resetButton} onPress={resetGame}>
         <Text style={styles.resetButtonText}>New Game</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
+  },
+  container: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 140,
+    paddingHorizontal: 10,
   },
   header: {
     flexDirection: 'row',
@@ -366,6 +551,97 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+  },
+  lowMoves: {
+    color: '#E74C3C',
+  },
+  objectiveContainer: {
+    width: '90%',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  objectiveTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4169E1',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  objectiveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: colors.background,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#2ECC71',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  colorTargetsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 4,
+  },
+  colorTarget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  colorDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  colorTargetText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  colorTargetComplete: {
+    color: '#2ECC71',
+    textDecorationLine: 'line-through',
+  },
+  checkmark: {
+    fontSize: 16,
+    color: '#2ECC71',
+    fontWeight: '700',
   },
   boardSizeText: {
     fontSize: 14,

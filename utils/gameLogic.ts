@@ -1,5 +1,5 @@
 
-import { Candy, CandyType, Position } from '@/types/game';
+import { Candy, CandyType, Position, LevelConfig, LevelObjective } from '@/types/game';
 
 const CANDY_TYPES: CandyType[] = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
 
@@ -49,8 +49,57 @@ export const getBoardSize = (level: number): { rows: number; cols: number } => {
   return { rows: 11, cols: 11 };
 };
 
+// Generate level configuration with objectives
+export const getLevelConfig = (level: number): LevelConfig => {
+  const boardSize = getBoardSize(level);
+  const totalCells = boardSize.rows * boardSize.cols;
+  
+  // Calculate moves based on board size and level
+  const baseMoves = Math.floor(totalCells * 1.5);
+  const moves = Math.max(15, baseMoves - Math.floor(level / 10));
+  
+  // Determine objective type based on level
+  let objective: LevelObjective;
+  
+  // Every 5th level has a color collection objective
+  if (level % 5 === 0) {
+    const numColors = Math.min(2 + Math.floor(level / 20), 4);
+    const targetColors: { [key in CandyType]?: number } = {};
+    const availableColors = CANDY_TYPES.slice(0, Math.min(4 + Math.floor(level / 10), CANDY_TYPES.length));
+    
+    // Select random colors for collection
+    const selectedColors = availableColors
+      .sort(() => Math.random() - 0.5)
+      .slice(0, numColors);
+    
+    selectedColors.forEach(color => {
+      targetColors[color] = Math.floor(totalCells * 0.4) + Math.floor(level / 5);
+    });
+    
+    const colorNames = selectedColors.join(', ');
+    objective = {
+      type: 'collect_colors',
+      description: `Collect ${Object.values(targetColors)[0]} of each: ${colorNames}`,
+      targetColors,
+    };
+  } else {
+    // Clear board objective
+    objective = {
+      type: 'clear_board',
+      description: 'Clear all candies from the board',
+    };
+  }
+  
+  return {
+    level,
+    moves,
+    boardSize,
+    objective,
+  };
+};
+
 export const createCandy = (row: number, col: number, level: number): Candy => {
-  const availableTypes = CANDY_TYPES.slice(0, Math.min(4 + level, CANDY_TYPES.length));
+  const availableTypes = CANDY_TYPES.slice(0, Math.min(4 + Math.floor(level / 10), CANDY_TYPES.length));
   const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
   return {
     id: `${row}-${col}-${Date.now()}-${Math.random()}`,
@@ -298,4 +347,39 @@ export const hasValidMoves = (board: (Candy | null)[][]): boolean => {
   }
   
   return false;
+};
+
+// Check if board is completely cleared
+export const isBoardCleared = (board: (Candy | null)[][]): boolean => {
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[row].length; col++) {
+      if (board[row][col] !== null) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+// Count candies by type on the board
+export const countCandiesByType = (board: (Candy | null)[][]): { [key in CandyType]: number } => {
+  const counts: { [key in CandyType]: number } = {
+    red: 0,
+    blue: 0,
+    green: 0,
+    yellow: 0,
+    purple: 0,
+    orange: 0,
+  };
+  
+  for (let row = 0; row < board.length; row++) {
+    for (let col = 0; col < board[row].length; col++) {
+      const candy = board[row][col];
+      if (candy) {
+        counts[candy.type]++;
+      }
+    }
+  }
+  
+  return counts;
 };
