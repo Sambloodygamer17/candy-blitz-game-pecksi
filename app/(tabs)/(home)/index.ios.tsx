@@ -1,43 +1,61 @@
-import React from "react";
-import { Stack } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
-import { useTheme } from "@react-navigation/native";
-import { modalDemos } from "@/components/homeData";
-import { DemoCard } from "@/components/DemoCard";
-import { HeaderRightButton, HeaderLeftButton } from "@/components/HeaderButtons";
+
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import { GameBoard } from '@/components/GameBoard';
+import { colors } from '@/styles/commonStyles';
+import { useFonts, Nunito_400Regular, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function HomeScreen() {
-  const theme = useTheme();
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: "Building the app...",
-          headerRight: () => <HeaderRightButton />,
-          headerLeft: () => <HeaderLeftButton />,
-        }}
-      />
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <FlatList
-          data={modalDemos}
-          renderItem={({ item }) => <DemoCard item={item} />}
-          keyExtractor={(item) => item.route}
-          contentContainerStyle={styles.listContainer}
-          contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </>
+    <View style={styles.container}>
+      <Text style={styles.title}>Trinity Match</Text>
+      <Text style={styles.subtitle}>Match 3 or more candies!</Text>
+      <GameBoard />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
   },
-  listContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+  title: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#4169E1',
+    marginTop: 20,
+    marginBottom: 8,
+    fontFamily: 'Nunito_800ExtraBold',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 10,
+    fontFamily: 'Nunito_700Bold',
   },
 });

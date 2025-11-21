@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert, Platform } from 'react-native';
 import { CandyPiece } from './CandyPiece';
 import { GameState, Position } from '@/types/game';
 import {
@@ -10,7 +10,6 @@ import {
   findMatches,
   removeMatches,
   applyGravity,
-  hasValidMoves,
 } from '@/utils/gameLogic';
 import { colors } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
@@ -35,7 +34,7 @@ export const GameBoard: React.FC = () => {
     let totalMatches = 0;
     let hasMatches = true;
     let iterations = 0;
-    const maxIterations = 20; // Prevent infinite loops
+    const maxIterations = 20;
 
     while (hasMatches && iterations < maxIterations) {
       iterations++;
@@ -88,7 +87,9 @@ export const GameBoard: React.FC = () => {
     }
 
     if (totalMatches > 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       
       const points = totalMatches * 10 * gameState.level;
       setGameState(prev => ({
@@ -127,14 +128,20 @@ export const GameBoard: React.FC = () => {
 
   const handleCandyPress = useCallback(
     async (row: number, col: number) => {
-      if (gameState.isProcessing || gameState.moves <= 0) return;
+      if (gameState.isProcessing || gameState.moves <= 0) {
+        console.log('Cannot press candy - processing or no moves left');
+        return;
+      }
 
       const position: Position = { row, col };
 
       if (!gameState.selectedCandy) {
         // First selection
+        console.log('First candy selected:', position);
         setGameState(prev => ({ ...prev, selectedCandy: position }));
-        Haptics.selectionAsync();
+        if (Platform.OS !== 'web') {
+          Haptics.selectionAsync();
+        }
       } else {
         // Second selection
         if (
@@ -142,13 +149,17 @@ export const GameBoard: React.FC = () => {
           gameState.selectedCandy.col === col
         ) {
           // Deselect
+          console.log('Candy deselected');
           setGameState(prev => ({ ...prev, selectedCandy: null }));
           return;
         }
 
         if (areAdjacent(gameState.selectedCandy, position)) {
+          console.log('Adjacent candies - attempting swap');
           setGameState(prev => ({ ...prev, isProcessing: true }));
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (Platform.OS !== 'web') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
 
           // Swap candies
           let newBoard = swapCandies(gameState.board, gameState.selectedCandy, position);
@@ -158,6 +169,7 @@ export const GameBoard: React.FC = () => {
 
           if (matches.length > 0) {
             // Valid move
+            console.log('Valid move - matches found:', matches.length);
             setGameState(prev => ({
               ...prev,
               board: newBoard,
@@ -171,7 +183,10 @@ export const GameBoard: React.FC = () => {
             }, 200);
           } else {
             // Invalid move - swap back
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            console.log('Invalid move - no matches, swapping back');
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
             
             setTimeout(() => {
               newBoard = swapCandies(newBoard, gameState.selectedCandy!, position);
@@ -185,8 +200,11 @@ export const GameBoard: React.FC = () => {
           }
         } else {
           // Not adjacent - select new candy
+          console.log('Not adjacent - selecting new candy:', position);
           setGameState(prev => ({ ...prev, selectedCandy: position }));
-          Haptics.selectionAsync();
+          if (Platform.OS !== 'web') {
+            Haptics.selectionAsync();
+          }
         }
       }
     },
@@ -194,6 +212,7 @@ export const GameBoard: React.FC = () => {
   );
 
   const resetGame = () => {
+    console.log('Resetting game');
     setGameState({
       board: createInitialBoard(BOARD_ROWS, BOARD_COLS, 1),
       score: 0,
@@ -206,6 +225,7 @@ export const GameBoard: React.FC = () => {
 
   useEffect(() => {
     if (gameState.moves <= 0 && !gameState.isProcessing) {
+      console.log('Game over - no moves left');
       setTimeout(() => {
         Alert.alert(
           'Game Over',
@@ -219,7 +239,7 @@ export const GameBoard: React.FC = () => {
         );
       }, 500);
     }
-  }, [gameState.moves, gameState.isProcessing]);
+  }, [gameState.moves, gameState.isProcessing, gameState.score, gameState.level]);
 
   return (
     <View style={styles.container}>
@@ -274,7 +294,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 120,
   },
   header: {
@@ -291,8 +311,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     minWidth: 90,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   statLabel: {
     fontSize: 12,
@@ -309,8 +341,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     padding: 8,
     borderRadius: 16,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-    elevation: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+      },
+    }),
   },
   row: {
     flexDirection: 'row',
@@ -321,8 +365,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 25,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+      },
+    }),
   },
   resetButtonText: {
     color: '#FFFFFF',

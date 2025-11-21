@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Candy } from '@/types/game';
 import { getCandyColor } from '@/utils/gameLogic';
 
@@ -38,7 +38,7 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
         useNativeDriver: true,
       }).start();
     }
-  }, [isSelected]);
+  }, [isSelected, scaleAnim]);
 
   useEffect(() => {
     if (candy.isMatched) {
@@ -65,8 +65,14 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
           useNativeDriver: true,
         }),
       ]).start();
+    } else {
+      // Reset animations when candy is not matched
+      scaleAnim.setValue(1);
+      opacityAnim.setValue(1);
+      rotateAnim.setValue(0);
+      translateYAnim.setValue(0);
     }
-  }, [candy.isMatched]);
+  }, [candy.isMatched, scaleAnim, opacityAnim, rotateAnim, translateYAnim]);
 
   const candyColor = getCandyColor(candy.type);
 
@@ -111,7 +117,19 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '90%',
     borderRadius: 12,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+      },
+    }),
   },
 });

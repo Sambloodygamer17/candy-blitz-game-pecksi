@@ -29,6 +29,7 @@ export const createCandy = (row: number, col: number, level: number): Candy => {
 };
 
 export const createInitialBoard = (rows: number, cols: number, level: number): (Candy | null)[][] => {
+  console.log(`Creating initial board: ${rows}x${cols}, level ${level}`);
   const board: (Candy | null)[][] = [];
   for (let row = 0; row < rows; row++) {
     board[row] = [];
@@ -47,6 +48,7 @@ export const createInitialBoard = (rows: number, cols: number, level: number): (
       board[row][col] = candy;
     }
   }
+  console.log('Initial board created successfully');
   return board;
 };
 
@@ -108,6 +110,7 @@ export const swapCandies = (
   pos1: Position,
   pos2: Position
 ): (Candy | null)[][] => {
+  console.log(`Swapping candies at (${pos1.row},${pos1.col}) and (${pos2.row},${pos2.col})`);
   const newBoard = board.map(row => [...row]);
   const temp = newBoard[pos1.row][pos1.col];
   newBoard[pos1.row][pos1.col] = newBoard[pos2.row][pos2.col];
@@ -179,16 +182,23 @@ export const findMatches = (board: (Candy | null)[][]): Position[] => {
     }
   }
   
-  return Array.from(matches).map(key => {
+  const matchArray = Array.from(matches).map(key => {
     const [row, col] = key.split('-').map(Number);
     return { row, col };
   });
+  
+  if (matchArray.length > 0) {
+    console.log(`Found ${matchArray.length} matches`);
+  }
+  
+  return matchArray;
 };
 
 export const removeMatches = (
   board: (Candy | null)[][],
   matches: Position[]
 ): (Candy | null)[][] => {
+  console.log(`Removing ${matches.length} matched candies`);
   const newBoard = board.map(row => [...row]);
   matches.forEach(({ row, col }) => {
     newBoard[row][col] = null;
@@ -197,6 +207,7 @@ export const removeMatches = (
 };
 
 export const applyGravity = (board: (Candy | null)[][], level: number): (Candy | null)[][] => {
+  console.log('Applying gravity to board');
   const newBoard = board.map(row => [...row]);
   const rows = newBoard.length;
   const cols = newBoard[0].length;
