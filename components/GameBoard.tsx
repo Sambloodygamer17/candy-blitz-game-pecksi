@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert, Platform } from 'react-native';
 import { CandyPiece } from './CandyPiece';
 import { GameState, Position } from '@/types/game';
@@ -29,22 +29,34 @@ export const GameBoard: React.FC = () => {
     isProcessing: false,
   });
 
-  const processMatches = useCallback(async () => {
-    let currentBoard = [...gameState.board.map(row => [...row])];
+  const gameStateRef = useRef(gameState);
+  
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][]) => {
+    console.log('Starting processMatches with board');
+    let currentBoard = initialBoard.map(row => [...row]);
     let totalMatches = 0;
     let hasMatches = true;
     let iterations = 0;
     const maxIterations = 20;
+    const currentLevel = gameStateRef.current.level;
+    const currentScore = gameStateRef.current.score;
 
     while (hasMatches && iterations < maxIterations) {
       iterations++;
+      console.log(`Processing iteration ${iterations}`);
       const matches = findMatches(currentBoard);
       
       if (matches.length === 0) {
+        console.log('No more matches found');
         hasMatches = false;
         break;
       }
 
+      console.log(`Found ${matches.length} matches in iteration ${iterations}`);
       totalMatches += matches.length;
       
       // Mark candies as matched for breaking animation
@@ -65,10 +77,12 @@ export const GameBoard: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 450));
 
       // Remove matches
+      console.log('Removing matches');
       currentBoard = removeMatches(boardWithMatches, matches);
 
       // Apply gravity to make candies fall
-      currentBoard = applyGravity(currentBoard, gameState.level);
+      console.log('Applying gravity');
+      currentBoard = applyGravity(currentBoard, currentLevel);
 
       // Update state to show falling animation
       setGameState(prev => ({
@@ -78,20 +92,18 @@ export const GameBoard: React.FC = () => {
 
       // Wait for falling animation to complete
       await new Promise(resolve => setTimeout(resolve, 400));
-
-      // Check for new matches created by falling candies
-      const newMatches = findMatches(currentBoard);
-      if (newMatches.length === 0) {
-        hasMatches = false;
-      }
     }
+
+    console.log(`Total matches processed: ${totalMatches}`);
 
     if (totalMatches > 0) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       
-      const points = totalMatches * 10 * gameState.level;
+      const points = totalMatches * 10 * currentLevel;
+      console.log(`Adding ${points} points to score`);
+      
       setGameState(prev => ({
         ...prev,
         board: currentBoard,
@@ -100,11 +112,11 @@ export const GameBoard: React.FC = () => {
       }));
 
       // Check for level up
-      if (gameState.score + points >= gameState.level * 500) {
+      if (currentScore + points >= currentLevel * 500) {
         setTimeout(() => {
           Alert.alert(
             'Level Up!',
-            `Congratulations! You've reached level ${gameState.level + 1}!`,
+            `Congratulations! You've reached level ${currentLevel + 1}!`,
             [
               {
                 text: 'Continue',
@@ -122,9 +134,10 @@ export const GameBoard: React.FC = () => {
         }, 500);
       }
     } else {
+      console.log('No matches to process, ending');
       setGameState(prev => ({ ...prev, isProcessing: false }));
     }
-  }, [gameState.board, gameState.level, gameState.score]);
+  }, []);
 
   const handleCandyPress = useCallback(
     async (row: number, col: number) => {
@@ -179,7 +192,7 @@ export const GameBoard: React.FC = () => {
 
             // Process matches after a short delay
             setTimeout(() => {
-              processMatches();
+              processMatchesWithBoard(newBoard);
             }, 200);
           } else {
             // Invalid move - swap back
@@ -208,7 +221,7 @@ export const GameBoard: React.FC = () => {
         }
       }
     },
-    [gameState, processMatches]
+    [gameState, processMatchesWithBoard]
   );
 
   const resetGame = () => {
