@@ -82,10 +82,12 @@ export const GameBoard: React.FC = () => {
     const currentCollected = { ...gameStateRef.current.collectedColors };
 
     // Track colors from initial matches
+    console.log('Tracking initial matched candies:', matchedCandies.length);
     matchedCandies.forEach(({ row, col }) => {
       const candy = currentBoard[row][col];
       if (candy) {
         currentCollected[candy.type]++;
+        console.log(`Collected ${candy.type}, new count: ${currentCollected[candy.type]}`);
       }
     });
 
@@ -103,11 +105,12 @@ export const GameBoard: React.FC = () => {
       console.log(`Found ${matches.length} matches in iteration ${iterations}`);
       totalMatches += matches.length;
       
-      // Track collected colors
+      // Track collected colors from cascading matches
       matches.forEach(({ row, col }) => {
         const candy = currentBoard[row][col];
         if (candy) {
           currentCollected[candy.type]++;
+          console.log(`Collected ${candy.type}, new count: ${currentCollected[candy.type]}`);
         }
       });
 
@@ -119,11 +122,11 @@ export const GameBoard: React.FC = () => {
         }
       });
 
-      // Update state to show breaking animation
+      // Update state to show breaking animation and current collected colors
       setGameState(prev => ({
         ...prev,
         board: boardWithMatches,
-        collectedColors: currentCollected,
+        collectedColors: { ...currentCollected },
       }));
 
       // Wait for breaking animation to complete
@@ -137,11 +140,11 @@ export const GameBoard: React.FC = () => {
       console.log('Applying gravity');
       currentBoard = applyGravity(currentBoard, currentLevel);
 
-      // Update state to show falling animation
+      // Update state to show falling animation with updated collected colors
       setGameState(prev => ({
         ...prev,
         board: currentBoard,
-        collectedColors: currentCollected,
+        collectedColors: { ...currentCollected },
       }));
 
       // Wait for falling animation to complete
@@ -149,6 +152,7 @@ export const GameBoard: React.FC = () => {
     }
 
     console.log(`Total matches processed: ${totalMatches}`);
+    console.log('Final collected colors:', currentCollected);
 
     if (totalMatches > 0) {
       if (Platform.OS !== 'web') {
@@ -162,7 +166,7 @@ export const GameBoard: React.FC = () => {
         ...gameStateRef.current,
         board: currentBoard,
         score: currentScore + points,
-        collectedColors: currentCollected,
+        collectedColors: { ...currentCollected },
         isProcessing: false,
       };
 
