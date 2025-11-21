@@ -10,23 +10,24 @@ import {
   findMatches,
   removeMatches,
   applyGravity,
+  getBoardSize,
 } from '@/utils/gameLogic';
 import { colors } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
 
-const BOARD_ROWS = 8;
-const BOARD_COLS = 8;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = Math.min((SCREEN_WIDTH - 40) / BOARD_COLS, 50);
 
 export const GameBoard: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>({
-    board: createInitialBoard(BOARD_ROWS, BOARD_COLS, 1),
-    score: 0,
-    moves: 30,
-    level: 1,
-    selectedCandy: null,
-    isProcessing: false,
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const { rows, cols } = getBoardSize(1);
+    return {
+      board: createInitialBoard(rows, cols, 1),
+      score: 0,
+      moves: 30,
+      level: 1,
+      selectedCandy: null,
+      isProcessing: false,
+    };
   });
 
   const gameStateRef = useRef(gameState);
@@ -34,6 +35,11 @@ export const GameBoard: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // Calculate cell size based on current board dimensions
+  const boardRows = gameState.board.length;
+  const boardCols = gameState.board[0]?.length || 0;
+  const CELL_SIZE = Math.min((SCREEN_WIDTH - 40) / Math.max(boardRows, boardCols), 50);
 
   const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][]) => {
     console.log('Starting processMatches with board');
@@ -114,18 +120,21 @@ export const GameBoard: React.FC = () => {
       // Check for level up
       if (currentScore + points >= currentLevel * 500) {
         setTimeout(() => {
+          const nextLevel = currentLevel + 1;
+          const { rows, cols } = getBoardSize(nextLevel);
+          
           Alert.alert(
             'Level Up!',
-            `Congratulations! You've reached level ${currentLevel + 1}!`,
+            `Congratulations! You've reached level ${nextLevel}!\nBoard size: ${rows}x${cols}`,
             [
               {
                 text: 'Continue',
                 onPress: () => {
                   setGameState(prev => ({
                     ...prev,
-                    level: prev.level + 1,
+                    level: nextLevel,
                     moves: 30,
-                    board: createInitialBoard(BOARD_ROWS, BOARD_COLS, prev.level + 1),
+                    board: createInitialBoard(rows, cols, nextLevel),
                   }));
                 },
               },
@@ -226,8 +235,9 @@ export const GameBoard: React.FC = () => {
 
   const resetGame = () => {
     console.log('Resetting game');
+    const { rows, cols } = getBoardSize(1);
     setGameState({
-      board: createInitialBoard(BOARD_ROWS, BOARD_COLS, 1),
+      board: createInitialBoard(rows, cols, 1),
       score: 0,
       moves: 30,
       level: 1,
@@ -270,6 +280,10 @@ export const GameBoard: React.FC = () => {
           <Text style={styles.statValue}>{gameState.moves}</Text>
         </View>
       </View>
+
+      <Text style={styles.boardSizeText}>
+        Board: {boardRows}×{boardCols}
+      </Text>
 
       <View style={styles.boardContainer}>
         {gameState.board.map((row, rowIndex) => (
@@ -315,7 +329,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '100%',
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
   statContainer: {
@@ -352,6 +366,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+  },
+  boardSizeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
   boardContainer: {
     backgroundColor: colors.card,

@@ -15,6 +15,40 @@ export const getCandyColor = (type: CandyType): string => {
   return colorMap[type];
 };
 
+// Calculate board size based on level (1-1000)
+export const getBoardSize = (level: number): { rows: number; cols: number } => {
+  // Level 1-10: 4x4
+  if (level <= 10) {
+    return { rows: 4, cols: 4 };
+  }
+  // Level 11-30: 5x5
+  if (level <= 30) {
+    return { rows: 5, cols: 5 };
+  }
+  // Level 31-60: 6x6
+  if (level <= 60) {
+    return { rows: 6, cols: 6 };
+  }
+  // Level 61-100: 7x7
+  if (level <= 100) {
+    return { rows: 7, cols: 7 };
+  }
+  // Level 101-200: 8x8
+  if (level <= 200) {
+    return { rows: 8, cols: 8 };
+  }
+  // Level 201-400: 9x9
+  if (level <= 400) {
+    return { rows: 9, cols: 9 };
+  }
+  // Level 401-700: 10x10
+  if (level <= 700) {
+    return { rows: 10, cols: 10 };
+  }
+  // Level 701-1000: 11x11
+  return { rows: 11, cols: 11 };
+};
+
 export const createCandy = (row: number, col: number, level: number): Candy => {
   const availableTypes = CANDY_TYPES.slice(0, Math.min(4 + level, CANDY_TYPES.length));
   const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
