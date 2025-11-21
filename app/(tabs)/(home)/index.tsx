@@ -1,22 +1,35 @@
-import React from "react";
-import { FlatList, StyleSheet, View } from "react-native";
-import { useTheme } from "@react-navigation/native";
-import { modalDemos } from "@/components/homeData";
-import { DemoCard } from "@/components/DemoCard";
+
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import { GameBoard } from '@/components/GameBoard';
+import { colors } from '@/styles/commonStyles';
+import { useFonts, Nunito_400Regular, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function HomeScreen() {
-  const theme = useTheme();
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <FlatList
-        data={modalDemos}
-        renderItem={({ item }) => <DemoCard item={item} />}
-        keyExtractor={(item) => item.route}
-        contentContainerStyle={styles.listContainer}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      />
+    <View style={styles.container}>
+      <Text style={styles.title}>Candy Crush</Text>
+      <Text style={styles.subtitle}>Match 3 or more candies!</Text>
+      <GameBoard />
     </View>
   );
 }
@@ -24,10 +37,25 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
   },
-  listContainer: {
-    paddingTop: 48,
-    paddingHorizontal: 16,
-    paddingBottom: 100, // Extra padding for floating tab bar
+  title: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: colors.primary,
+    marginTop: 60,
+    marginBottom: 8,
+    fontFamily: 'Nunito_800ExtraBold',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 10,
+    fontFamily: 'Nunito_700Bold',
   },
 });
