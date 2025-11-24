@@ -53,11 +53,9 @@ export const GameBoard: React.FC = () => {
   const CELL_SIZE = Math.min((SCREEN_WIDTH - 40) / Math.max(boardRows, boardCols), 50);
 
   const checkLevelComplete = useCallback((currentState: GameState): boolean => {
-    const { objective, collectedColors, board } = currentState;
+    const { objective, collectedColors } = currentState;
     
-    if (objective.type === 'clear_board') {
-      return isBoardCleared(board);
-    } else if (objective.type === 'collect_colors' && objective.targetColors) {
+    if (objective.type === 'collect_colors' && objective.targetColors) {
       // Check if all color targets are met
       for (const [color, target] of Object.entries(objective.targetColors)) {
         if (collectedColors[color as CandyType] < target) {
@@ -185,7 +183,7 @@ export const GameBoard: React.FC = () => {
           
           Alert.alert(
             'Level Complete! 🎉',
-            `Congratulations! You've completed level ${currentLevel}!\n\nNext Level: ${nextLevel}\nBoard size: ${nextLevelConfig.boardSize.rows}×${nextLevelConfig.boardSize.cols}\nMoves: ${nextLevelConfig.moves}`,
+            `Congratulations! You&apos;ve completed level ${currentLevel}!\n\nNext Level: ${nextLevel}\nBoard size: ${nextLevelConfig.boardSize.rows}×${nextLevelConfig.boardSize.cols}\nMoves: ${nextLevelConfig.moves}`,
             [
               {
                 text: 'Continue',
@@ -382,34 +380,7 @@ export const GameBoard: React.FC = () => {
   const renderObjectiveProgress = () => {
     const { objective, collectedColors } = gameState;
     
-    if (objective.type === 'clear_board') {
-      const totalCells = boardRows * boardCols;
-      let filledCells = 0;
-      gameState.board.forEach(row => {
-        row.forEach(cell => {
-          if (cell !== null) filledCells++;
-        });
-      });
-      const clearedCells = totalCells - filledCells;
-      
-      return (
-        <View style={styles.objectiveContainer}>
-          <Text style={styles.objectiveTitle}>Objective</Text>
-          <Text style={styles.objectiveText}>{objective.description}</Text>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { width: `${(clearedCells / totalCells) * 100}%` }
-              ]} 
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {clearedCells} / {totalCells} cleared
-          </Text>
-        </View>
-      );
-    } else if (objective.type === 'collect_colors' && objective.targetColors) {
+    if (objective.type === 'collect_colors' && objective.targetColors) {
       return (
         <View style={styles.objectiveContainer}>
           <Text style={styles.objectiveTitle}>Objective</Text>

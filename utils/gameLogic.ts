@@ -58,37 +58,41 @@ export const getLevelConfig = (level: number): LevelConfig => {
   const baseMoves = Math.floor(totalCells * 1.5);
   const moves = Math.max(15, baseMoves - Math.floor(level / 10));
   
-  // Determine objective type based on level
+  // EVERY level now has a color collection objective
   let objective: LevelObjective;
   
-  // Every 5th level has a color collection objective
-  if (level % 5 === 0) {
-    const numColors = Math.min(2 + Math.floor(level / 20), 4);
-    const targetColors: { [key in CandyType]?: number } = {};
-    const availableColors = CANDY_TYPES.slice(0, Math.min(4 + Math.floor(level / 10), CANDY_TYPES.length));
-    
-    // Select random colors for collection
-    const selectedColors = availableColors
-      .sort(() => Math.random() - 0.5)
-      .slice(0, numColors);
-    
-    selectedColors.forEach(color => {
-      targetColors[color] = Math.floor(totalCells * 0.4) + Math.floor(level / 5);
-    });
-    
-    const colorNames = selectedColors.join(', ');
-    objective = {
-      type: 'collect_colors',
-      description: `Collect ${Object.values(targetColors)[0]} of each: ${colorNames}`,
-      targetColors,
-    };
-  } else {
-    // Clear board objective
-    objective = {
-      type: 'clear_board',
-      description: 'Clear all candies from the board',
-    };
-  }
+  // Determine number of colors to collect based on level
+  const numColors = Math.min(1 + Math.floor(level / 10), 3);
+  const targetColors: { [key in CandyType]?: number } = {};
+  const availableColors = CANDY_TYPES.slice(0, Math.min(4 + Math.floor(level / 10), CANDY_TYPES.length));
+  
+  // Select random colors for collection using level as seed for consistency
+  const shuffledColors = [...availableColors].sort((a, b) => {
+    const hashA = (a.charCodeAt(0) * level) % 100;
+    const hashB = (b.charCodeAt(0) * level) % 100;
+    return hashA - hashB;
+  });
+  
+  const selectedColors = shuffledColors.slice(0, numColors);
+  
+  // Calculate target amount based on level and board size
+  const baseTarget = Math.floor(totalCells * 0.3) + Math.floor(level / 3);
+  
+  selectedColors.forEach(color => {
+    targetColors[color] = Math.max(8, baseTarget);
+  });
+  
+  // Create description
+  const colorDescriptions = selectedColors.map(color => {
+    const amount = targetColors[color];
+    return `${amount} ${color}`;
+  });
+  
+  objective = {
+    type: 'collect_colors',
+    description: `Collect ${colorDescriptions.join(', ')}`,
+    targetColors,
+  };
   
   return {
     level,
