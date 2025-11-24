@@ -28,7 +28,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Trinity Match</Text>
-      <Text style={styles.subtitle}>Match 3 or more candies!</Text>
+      <Text style={styles.subtitle}>Match 3 or More Colors</Text>
       <GameBoard />
     </View>
   );
