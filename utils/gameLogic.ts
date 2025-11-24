@@ -353,6 +353,53 @@ export const hasValidMoves = (board: (Candy | null)[][]): boolean => {
   return false;
 };
 
+// Randomize the board while ensuring at least one valid move exists
+export const randomizeBoard = (board: (Candy | null)[][], level: number): (Candy | null)[][] => {
+  console.log('Randomizing board - no valid moves available');
+  const rows = board.length;
+  const cols = board[0].length;
+  let newBoard: (Candy | null)[][] = [];
+  let attempts = 0;
+  const maxAttempts = 50;
+  
+  // Keep trying to create a board with valid moves
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log(`Randomization attempt ${attempts}`);
+    
+    // Create a new board with random candies
+    newBoard = [];
+    for (let row = 0; row < rows; row++) {
+      newBoard[row] = [];
+      for (let col = 0; col < cols; col++) {
+        let candy = createCandy(row, col, level);
+        
+        // Ensure no initial matches (same as createInitialBoard)
+        let candyAttempts = 0;
+        while (candyAttempts < 10) {
+          const hasMatch = checkWouldCreateMatch(newBoard, candy, row, col);
+          if (!hasMatch) break;
+          candy = createCandy(row, col, level);
+          candyAttempts++;
+        }
+        
+        newBoard[row][col] = candy;
+      }
+    }
+    
+    // Check if this board has valid moves
+    if (hasValidMoves(newBoard)) {
+      console.log(`Successfully created randomized board with valid moves on attempt ${attempts}`);
+      return newBoard;
+    }
+  }
+  
+  // If we couldn't create a board with valid moves after max attempts,
+  // return the last attempt (this should be extremely rare)
+  console.warn('Could not create board with valid moves after max attempts, returning last attempt');
+  return newBoard;
+};
+
 // Check if board is completely cleared
 export const isBoardCleared = (board: (Candy | null)[][]): boolean => {
   for (let row = 0; row < board.length; row++) {

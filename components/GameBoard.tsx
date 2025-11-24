@@ -13,6 +13,8 @@ import {
   getLevelConfig,
   isBoardCleared,
   getCandyColor,
+  hasValidMoves,
+  randomizeBoard,
 } from '@/utils/gameLogic';
 import { colors } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
@@ -65,6 +67,39 @@ export const GameBoard: React.FC = () => {
       return true;
     }
     
+    return false;
+  }, []);
+
+  const checkAndRandomizeIfNeeded = useCallback(async (currentBoard: (any | null)[][]) => {
+    console.log('Checking if board has valid moves...');
+    
+    // Check if there are any valid moves
+    if (!hasValidMoves(currentBoard)) {
+      console.log('No valid moves found! Randomizing board...');
+      
+      // Show a brief message to the user
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      
+      // Wait a moment before randomizing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Randomize the board
+      const randomizedBoard = randomizeBoard(currentBoard, gameStateRef.current.level);
+      
+      // Update the board state
+      setGameState(prev => ({
+        ...prev,
+        board: randomizedBoard,
+        isProcessing: false,
+      }));
+      
+      console.log('Board randomized successfully');
+      return true;
+    }
+    
+    console.log('Valid moves available');
     return false;
   }, []);
 
@@ -213,13 +248,21 @@ export const GameBoard: React.FC = () => {
               },
             ]
           );
+        } else {
+          // Level not complete, check if board needs randomization
+          checkAndRandomizeIfNeeded(currentBoard);
         }
       }, 500);
     } else {
-      console.log('No matches to process, ending');
+      console.log('No matches to process, checking for valid moves');
       setGameState(prev => ({ ...prev, isProcessing: false }));
+      
+      // Check if board needs randomization after a short delay
+      setTimeout(() => {
+        checkAndRandomizeIfNeeded(currentBoard);
+      }, 300);
     }
-  }, [checkLevelComplete]);
+  }, [checkLevelComplete, checkAndRandomizeIfNeeded]);
 
   const handleCandyPress = useCallback(
     async (row: number, col: number) => {
