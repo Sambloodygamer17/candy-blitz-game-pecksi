@@ -54,20 +54,73 @@ export const GameBoard: React.FC = () => {
   const boardCols = gameState.board[0]?.length || 0;
   const CELL_SIZE = Math.min((SCREEN_WIDTH - 40) / Math.max(boardRows, boardCols), 50);
 
-  const checkLevelComplete = useCallback((currentState: GameState): boolean => {
-    const { objective, collectedColors } = currentState;
+  const checkLevelComplete = useCallback((state: GameState): boolean => {
+    const { objective, collectedColors } = state;
+    
+    console.log('Checking level complete with state:', {
+      objective,
+      collectedColors
+    });
     
     if (objective.type === 'collect_colors' && objective.targetColors) {
       // Check if all color targets are met
       for (const [color, target] of Object.entries(objective.targetColors)) {
-        if (collectedColors[color as CandyType] < target) {
+        const collected = collectedColors[color as CandyType];
+        console.log(`Color ${color}: collected ${collected}, target ${target}`);
+        if (collected < target) {
+          console.log(`Level not complete - ${color} needs ${target - collected} more`);
           return false;
         }
       }
+      console.log('Level complete! All targets met.');
       return true;
     }
     
     return false;
+  }, []);
+
+  const advanceToNextLevel = useCallback((currentScore: number, currentLevel: number) => {
+    console.log('Advancing to next level');
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    
+    const nextLevel = currentLevel + 1;
+    const nextLevelConfig = getLevelConfig(nextLevel);
+    
+    Alert.alert(
+      'Level Complete! 🎉',
+      `Congratulations! You&apos;ve completed level ${currentLevel}!\n\nNext Level: ${nextLevel}\nBoard size: ${nextLevelConfig.boardSize.rows}×${nextLevelConfig.boardSize.cols}\nMoves: ${nextLevelConfig.moves}`,
+      [
+        {
+          text: 'Continue',
+          onPress: () => {
+            console.log(`Setting up level ${nextLevel}`);
+            setGameState({
+              board: createInitialBoard(
+                nextLevelConfig.boardSize.rows,
+                nextLevelConfig.boardSize.cols,
+                nextLevel
+              ),
+              score: currentScore,
+              moves: nextLevelConfig.moves,
+              level: nextLevel,
+              selectedCandy: null,
+              isProcessing: false,
+              objective: nextLevelConfig.objective,
+              collectedColors: {
+                red: 0,
+                blue: 0,
+                green: 0,
+                yellow: 0,
+                purple: 0,
+                orange: 0,
+              },
+            });
+          },
+        },
+      ]
+    );
   }, []);
 
   const checkAndRandomizeIfNeeded = useCallback(async (currentBoard: (any | null)[][]) => {
@@ -202,50 +255,20 @@ export const GameBoard: React.FC = () => {
 
       setGameState(updatedState);
 
-      // Check if level is complete
+      // Check if level is complete after a short delay to ensure state is updated
       setTimeout(() => {
-        if (checkLevelComplete(updatedState)) {
-          console.log('Level complete!');
-          if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          
-          const nextLevel = currentLevel + 1;
-          const nextLevelConfig = getLevelConfig(nextLevel);
-          
-          Alert.alert(
-            'Level Complete! 🎉',
-            `Congratulations! You&apos;ve completed level ${currentLevel}!\n\nNext Level: ${nextLevel}\nBoard size: ${nextLevelConfig.boardSize.rows}×${nextLevelConfig.boardSize.cols}\nMoves: ${nextLevelConfig.moves}`,
-            [
-              {
-                text: 'Continue',
-                onPress: () => {
-                  setGameState({
-                    board: createInitialBoard(
-                      nextLevelConfig.boardSize.rows,
-                      nextLevelConfig.boardSize.cols,
-                      nextLevel
-                    ),
-                    score: updatedState.score,
-                    moves: nextLevelConfig.moves,
-                    level: nextLevel,
-                    selectedCandy: null,
-                    isProcessing: false,
-                    objective: nextLevelConfig.objective,
-                    collectedColors: {
-                      red: 0,
-                      blue: 0,
-                      green: 0,
-                      yellow: 0,
-                      purple: 0,
-                      orange: 0,
-                    },
-                  });
-                },
-              },
-            ]
-          );
+        // Use the most recent state from ref
+        const latestState = gameStateRef.current;
+        console.log('Checking level completion with latest state:', {
+          collectedColors: latestState.collectedColors,
+          targetColors: latestState.objective.targetColors
+        });
+        
+        if (checkLevelComplete(latestState)) {
+          console.log('Level complete detected!');
+          advanceToNextLevel(latestState.score, latestState.level);
         } else {
+          console.log('Level not complete yet, checking for valid moves');
           // Level not complete, check if board needs randomization
           checkAndRandomizeIfNeeded(currentBoard);
         }
@@ -259,7 +282,7 @@ export const GameBoard: React.FC = () => {
         checkAndRandomizeIfNeeded(currentBoard);
       }, 300);
     }
-  }, [checkLevelComplete, checkAndRandomizeIfNeeded]);
+  }, [checkLevelComplete, advanceToNextLevel, checkAndRandomizeIfNeeded]);
 
   const handleCandyPress = useCallback(
     async (row: number, col: number) => {
