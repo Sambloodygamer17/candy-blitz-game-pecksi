@@ -37,7 +37,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
     alignItems: 'center',
     paddingTop: Platform.OS === 'android' ? 48 : 0,
   },
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 10,
     fontFamily: 'Nunito_700Bold',
   },

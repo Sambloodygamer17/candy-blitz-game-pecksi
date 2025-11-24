@@ -42,10 +42,10 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
 
   useEffect(() => {
     if (candy.isMatched) {
-      // Breaking animation - scale down, rotate, and fade out while falling
+      // Enhanced breaking animation - scale down, rotate, and fall down the screen
       Animated.parallel([
         Animated.timing(scaleAnim, {
-          toValue: 0.3,
+          toValue: 0.2,
           duration: 400,
           useNativeDriver: true,
         }),
@@ -55,12 +55,12 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
           useNativeDriver: true,
         }),
         Animated.timing(rotateAnim, {
-          toValue: 1,
+          toValue: 2,
           duration: 400,
           useNativeDriver: true,
         }),
         Animated.timing(translateYAnim, {
-          toValue: 100,
+          toValue: 300,
           duration: 400,
           useNativeDriver: true,
         }),
@@ -78,7 +78,7 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
 
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
+    outputRange: ['0deg', '360deg'],
   });
 
   return (
@@ -121,14 +121,14 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.4,
         shadowRadius: 8,
       },
       android: {
         elevation: 4,
       },
       web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.4)',
       },
     }),
   },

@@ -103,7 +103,7 @@ export const GameBoard: React.FC = () => {
     return false;
   }, []);
 
-  const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][], matchedCandies: Position[]) => {
+  const processMatchesWithBoard = useCallback(async (initialBoard: (any | null)[][], initialMatchedCandies: Position[]) => {
     console.log('Starting processMatches with board');
     let currentBoard = initialBoard.map(row => [...row]);
     let totalMatches = 0;
@@ -114,15 +114,21 @@ export const GameBoard: React.FC = () => {
     const currentScore = gameStateRef.current.score;
     const currentCollected = { ...gameStateRef.current.collectedColors };
 
-    // Track colors from initial matches
-    console.log('Tracking initial matched candies:', matchedCandies.length);
-    matchedCandies.forEach(({ row, col }) => {
+    // Track colors ONLY from initial matches (user's move)
+    console.log('Tracking initial matched candies:', initialMatchedCandies.length);
+    initialMatchedCandies.forEach(({ row, col }) => {
       const candy = currentBoard[row][col];
       if (candy) {
         currentCollected[candy.type]++;
         console.log(`Collected ${candy.type}, new count: ${currentCollected[candy.type]}`);
       }
     });
+
+    // Update collected colors immediately after counting initial matches
+    setGameState(prev => ({
+      ...prev,
+      collectedColors: { ...currentCollected },
+    }));
 
     while (hasMatches && iterations < maxIterations) {
       iterations++;
@@ -138,14 +144,7 @@ export const GameBoard: React.FC = () => {
       console.log(`Found ${matches.length} matches in iteration ${iterations}`);
       totalMatches += matches.length;
       
-      // Track collected colors from cascading matches
-      matches.forEach(({ row, col }) => {
-        const candy = currentBoard[row][col];
-        if (candy) {
-          currentCollected[candy.type]++;
-          console.log(`Collected ${candy.type}, new count: ${currentCollected[candy.type]}`);
-        }
-      });
+      // DO NOT track cascading matches for objective - only count initial matches
 
       // Mark candies as matched for breaking animation
       const boardWithMatches = currentBoard.map(row => [...row]);
@@ -155,11 +154,10 @@ export const GameBoard: React.FC = () => {
         }
       });
 
-      // Update state to show breaking animation and current collected colors
+      // Update state to show breaking animation
       setGameState(prev => ({
         ...prev,
         board: boardWithMatches,
-        collectedColors: { ...currentCollected },
       }));
 
       // Wait for breaking animation to complete
@@ -173,11 +171,10 @@ export const GameBoard: React.FC = () => {
       console.log('Applying gravity');
       currentBoard = applyGravity(currentBoard, currentLevel);
 
-      // Update state to show falling animation with updated collected colors
+      // Update state to show falling animation
       setGameState(prev => ({
         ...prev,
         board: currentBoard,
-        collectedColors: { ...currentCollected },
       }));
 
       // Wait for falling animation to complete
@@ -520,12 +517,14 @@ export const GameBoard: React.FC = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
+    backgroundColor: '#000000',
   },
   container: {
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 140,
     paddingHorizontal: 10,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -537,7 +536,7 @@ const styles = StyleSheet.create({
   },
   statContainer: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: '#1a1a1a',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
@@ -546,21 +545,21 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.3,
         shadowRadius: 3,
       },
       android: {
         elevation: 2,
       },
       web: {
-        boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.3)',
       },
     }),
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#888888',
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -568,14 +567,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   lowMoves: {
     color: '#E74C3C',
   },
   objectiveContainer: {
     width: '90%',
-    backgroundColor: colors.card,
+    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -583,14 +582,14 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.3,
         shadowRadius: 4,
       },
       android: {
         elevation: 3,
       },
       web: {
-        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)',
       },
     }),
   },
@@ -605,13 +604,13 @@ const styles = StyleSheet.create({
   objectiveText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 10,
   },
   progressBar: {
     width: '100%',
     height: 8,
-    backgroundColor: colors.background,
+    backgroundColor: '#0a0a0a',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 6,
@@ -624,7 +623,7 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#888888',
     textAlign: 'center',
   },
   colorTargetsContainer: {
@@ -636,7 +635,7 @@ const styles = StyleSheet.create({
   colorTarget: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#0a0a0a',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
@@ -650,7 +649,7 @@ const styles = StyleSheet.create({
   colorTargetText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   colorTargetComplete: {
     color: '#2ECC71',
@@ -664,25 +663,25 @@ const styles = StyleSheet.create({
   boardSizeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#888888',
     marginBottom: 8,
   },
   boardContainer: {
-    backgroundColor: colors.card,
+    backgroundColor: '#1a1a1a',
     padding: 8,
     borderRadius: 16,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
+        shadowOpacity: 0.5,
         shadowRadius: 12,
       },
       android: {
         elevation: 5,
       },
       web: {
-        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.5)',
       },
     }),
   },
@@ -697,16 +696,16 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#4169E1',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.4,
         shadowRadius: 8,
       },
       android: {
         elevation: 4,
       },
       web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+        boxShadow: '0px 4px 8px rgba(65, 105, 225, 0.4)',
       },
     }),
   },
