@@ -14,7 +14,6 @@ interface CandyPieceProps {
 export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -42,7 +41,7 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
 
   useEffect(() => {
     if (candy.isMatched) {
-      // Enhanced breaking animation - scale down, rotate, and fall down the screen
+      // Smooth falling animation without rotation - scale down and fall down the screen
       Animated.parallel([
         Animated.timing(scaleAnim, {
           toValue: 0.2,
@@ -51,11 +50,6 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
         }),
         Animated.timing(opacityAnim, {
           toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotateAnim, {
-          toValue: 2,
           duration: 400,
           useNativeDriver: true,
         }),
@@ -69,17 +63,11 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
       // Reset animations when candy is not matched
       scaleAnim.setValue(1);
       opacityAnim.setValue(1);
-      rotateAnim.setValue(0);
       translateYAnim.setValue(0);
     }
-  }, [candy.isMatched, scaleAnim, opacityAnim, rotateAnim, translateYAnim]);
+  }, [candy.isMatched, scaleAnim, opacityAnim, translateYAnim]);
 
   const candyColor = getCandyColor(candy.type);
-
-  const rotate = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
     <TouchableOpacity
@@ -94,7 +82,6 @@ export const CandyPiece: React.FC<CandyPieceProps> = ({ candy, size, isSelected,
             backgroundColor: candyColor,
             transform: [
               { scale: scaleAnim },
-              { rotate: rotate },
               { translateY: translateYAnim },
             ],
             opacity: opacityAnim,
